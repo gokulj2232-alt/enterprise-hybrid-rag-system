@@ -1,0 +1,42 @@
+[
+    {
+        "question": "What are embeddings?",
+        "category": "embeddings"
+    },
+    {
+        "question": "What is retrieval augmented generation?",
+        "category": "rag"
+    },
+    {
+        "question": "What is semantic search?",
+        "category": "semantic_search"
+    },
+    {
+        "question": "What is FAISS?",
+        "category": "vector_database"
+    },
+    {
+        "question": "What is BM25?",
+        "category": "keyword_search"
+    },
+    {
+        "question": "What is hybrid search?",
+        "category": "hybrid_search"
+    },
+    {
+        "question": "What is reranking?",
+        "category": "reranking"
+    },
+    {
+        "question": "What is a vector database?",
+        "category": "vector_database"
+    },
+    {
+        "question": "How does RAG retrieve relevant information?",
+        "category": "rag"
+    },
+    {
+        "question": "How are embeddings used in semantic search?",
+        "category": "embeddings"
+    }
+]

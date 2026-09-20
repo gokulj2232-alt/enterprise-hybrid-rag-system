@@ -1,0 +1,90 @@
+{
+    "total_questions": 10,
+    "successful_answers": 5,
+    "fallback_answers": 5,
+    "success_rate_percent": 50.0,
+    "average_processing_time_seconds": 16.989,
+    "total_evaluation_time_seconds": 169.896,
+    "results": [
+        {
+            "question": "What are embeddings?",
+            "category": "embeddings",
+            "answer": "Embeddings are numerical vector representations of text, documents, sentences, or other data.",
+            "source_count": 5,
+            "fallback": false,
+            "processing_time_seconds": 10.351
+        },
+        {
+            "question": "What is retrieval augmented generation?",
+            "category": "rag",
+            "answer": "Retrieval-Augmented Generation (RAG) is an approach that combines information retrieval with a large language model.",
+            "source_count": 5,
+            "fallback": false,
+            "processing_time_seconds": 18.325
+        },
+        {
+            "question": "What is semantic search?",
+            "category": "semantic_search",
+            "answer": "This allows semantic search to find relevant documents even when the wording of the query differs from the wording in the document.",
+            "source_count": 5,
+            "fallback": false,
+            "processing_time_seconds": 18.453
+        },
+        {
+            "question": "What is FAISS?",
+            "category": "vector_database",
+            "answer": "I don't know based on the provided documents.",
+            "source_count": 5,
+            "fallback": true,
+            "processing_time_seconds": 16.905
+        },
+        {
+            "question": "What is BM25?",
+            "category": "keyword_search",
+            "answer": "I don't know based on the provided documents.",
+            "source_count": 1,
+            "fallback": true,
+            "processing_time_seconds": 8.142
+        },
+        {
+            "question": "What is hybrid search?",
+            "category": "hybrid_search",
+            "answer": "Semantic search captures meaning and related concepts, while keyword search can capture exact terms.",
+            "source_count": 1,
+            "fallback": false,
+            "processing_time_seconds": 8.255
+        },
+        {
+            "question": "What is reranking?",
+            "category": "reranking",
+            "answer": "I don't know based on the provided documents.",
+            "source_count": 0,
+            "fallback": true,
+            "processing_time_seconds": 8.123
+        },
+        {
+            "question": "What is a vector database?",
+            "category": "vector_database",
+            "answer": "Vector databases are commonly used for semantic search, recommendation systems, and retrieval pipelines.",
+            "source_count": 5,
+            "fallback": false,
+            "processing_time_seconds": 17.402
+        },
+        {
+            "question": "How does RAG retrieve relevant information?",
+            "category": "rag",
+            "answer": "I don't know based on the provided documents.",
+            "source_count": 5,
+            "fallback": true,
+            "processing_time_seconds": 34.079
+        },
+        {
+            "question": "How are embeddings used in semantic search?",
+            "category": "embeddings",
+            "answer": "I don't know based on the provided documents.",
+            "source_count": 5,
+            "fallback": true,
+            "processing_time_seconds": 29.856
+        }
+    ]
+}

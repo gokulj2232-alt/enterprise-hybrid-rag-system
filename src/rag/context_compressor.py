@@ -1,0 +1,1 @@
+compress_context = lambda results, max_chars=6000: [dict(result, text=result.get('text', '')[:1200]) for result in results][:max(1, max_chars // 1200)]
