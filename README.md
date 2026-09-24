@@ -371,7 +371,7 @@ Make sure Docker Desktop is running.
 Navigate to the project:
 
 ```powershell
-cd C:\Users\ELCOT\Desktop\semantic_search_project
+cd D:\semantic_search_project
 ```
 
 ## 3. Start the services
