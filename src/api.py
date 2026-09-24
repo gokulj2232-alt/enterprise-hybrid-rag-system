@@ -5,11 +5,29 @@ from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+
+# ============================================================
+# PROJECT ROOT
+# ============================================================
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
+
+sys.path.insert(
+    0,
+    str(PROJECT_ROOT)
+)
+
+
+# ============================================================
+# RAG PIPELINE
+# ============================================================
 
 from src.rag.rag_pipeline import rag_pipeline
 
+
+# ============================================================
+# FASTAPI APPLICATION
+# ============================================================
 
 app = FastAPI(
     title="Enterprise Hybrid RAG API",
@@ -17,6 +35,10 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+# ============================================================
+# REQUEST MODEL
+# ============================================================
 
 class QuestionRequest(BaseModel):
 
@@ -38,6 +60,15 @@ class QuestionRequest(BaseModel):
         description="Previous conversation messages"
     )
 
+    uploaded_dataset: bool = Field(
+        default=False,
+        description="Use the currently uploaded dataset"
+    )
+
+
+# ============================================================
+# ROOT ENDPOINT
+# ============================================================
 
 @app.get("/")
 def root():
@@ -49,6 +80,10 @@ def root():
     }
 
 
+# ============================================================
+# HEALTH ENDPOINT
+# ============================================================
+
 @app.get("/health")
 def health_check():
 
@@ -59,8 +94,14 @@ def health_check():
     }
 
 
+# ============================================================
+# ASK ENDPOINT
+# ============================================================
+
 @app.post("/ask")
-def ask_question(request: QuestionRequest):
+def ask_question(
+    request: QuestionRequest
+):
 
     question = request.question.strip()
 
@@ -76,29 +117,49 @@ def ask_question(request: QuestionRequest):
 
     start_time = time.time()
 
+    # --------------------------------------------------------
+    # RUN RAG PIPELINE
+    # --------------------------------------------------------
+
     result = rag_pipeline(
         question,
         top_k=request.top_k,
-        conversation=request.conversation
+        conversation=request.conversation,
+        uploaded_dataset=request.uploaded_dataset
     )
+
+    # --------------------------------------------------------
+    # PROCESSING TIME
+    # --------------------------------------------------------
 
     processing_time = round(
         time.time() - start_time,
         3
     )
 
+    # --------------------------------------------------------
+    # RESPONSE
+    # --------------------------------------------------------
+
     return {
+
         "question": question,
+
         "answer": result.get(
             "answer",
             "I don't know based on the provided documents."
         ),
+
         "sources": result.get(
             "sources",
             []
         ),
+
         "processing_time_seconds": processing_time,
+
         "conversation_messages_received": len(
             request.conversation
-        )
+        ),
+
+        "uploaded_dataset": request.uploaded_dataset
     }

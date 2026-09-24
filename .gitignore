@@ -12,3 +12,14 @@ data/*.npz
 models/
 
 data/uploads/
+
+data/uploads/*
+
+# Local/generated project files
+legacy_backup/
+data/
+
+*.zip
+*.txt
+
+patch_rag.py

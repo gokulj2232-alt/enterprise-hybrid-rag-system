@@ -1,8 +1,11 @@
 import re
 import numpy as np
-
 from sentence_transformers import SentenceTransformer
 
+
+# =============================================================
+# CONFIGURATION
+# =============================================================
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
@@ -11,20 +14,11 @@ FALLBACK_ANSWER = (
 )
 
 
+# =============================================================
+# ANSWERABILITY CHECKER
+# =============================================================
+
 class AnswerabilityChecker:
-    """
-    Conservative answerability checker.
-
-    Checks:
-    1. Semantic similarity
-    2. Lexical overlap
-    3. Question intent
-    4. Required evidence type
-
-    The goal is to prevent the LLM from answering questions
-    when the retrieved documents do not contain the required
-    type of information.
-    """
 
     def __init__(
         self,
@@ -57,7 +51,10 @@ class AnswerabilityChecker:
     # NORMALIZE TEXT
     # =========================================================
 
-    def normalize_text(self, text):
+    def normalize_text(
+        self,
+        text
+    ):
 
         text = str(text).lower()
 
@@ -79,9 +76,14 @@ class AnswerabilityChecker:
     # TOKENIZE
     # =========================================================
 
-    def tokenize(self, text):
+    def tokenize(
+        self,
+        text
+    ):
 
-        text = self.normalize_text(text)
+        text = self.normalize_text(
+            text
+        )
 
         return set(
             word
@@ -93,7 +95,10 @@ class AnswerabilityChecker:
     # SENTENCE SPLITTING
     # =========================================================
 
-    def split_sentences(self, text):
+    def split_sentences(
+        self,
+        text
+    ):
 
         sentences = re.split(
             r"(?<=[.!?])\s+",
@@ -110,22 +115,33 @@ class AnswerabilityChecker:
     # QUESTION TYPE
     # =========================================================
 
-    def detect_question_type(self, query):
+    def detect_question_type(
+        self,
+        query
+    ):
 
-        normalized = (
-            self.normalize_text(query)
+        normalized = self.normalize_text(
+            query
         )
 
         words = normalized.split()
 
         if not words:
+
             return "unknown"
 
+        # -----------------------------------------------------
         # WHO
+        # -----------------------------------------------------
+
         if words[0] == "who":
+
             return "person"
 
+        # -----------------------------------------------------
         # WHICH
+        # -----------------------------------------------------
+
         if words[0] == "which":
 
             if any(
@@ -139,23 +155,31 @@ class AnswerabilityChecker:
                     "providers"
                 ]
             ):
+
                 return "entity"
 
             return "selection"
 
+        # -----------------------------------------------------
         # WHEN
-        if words[0] in [
-            "when"
-        ]:
+        # -----------------------------------------------------
+
+        if words[0] == "when":
+
             return "date"
 
+        # -----------------------------------------------------
         # WHERE
-        if words[0] in [
-            "where"
-        ]:
+        # -----------------------------------------------------
+
+        if words[0] == "where":
+
             return "location"
 
+        # -----------------------------------------------------
         # HOW MANY / HOW MUCH
+        # -----------------------------------------------------
+
         if (
             len(words) >= 2
             and words[0] == "how"
@@ -164,25 +188,41 @@ class AnswerabilityChecker:
                 "much"
             ]
         ):
+
             return "number"
 
+        # -----------------------------------------------------
         # HOW LONG
+        # -----------------------------------------------------
+
         if (
             len(words) >= 2
             and words[0] == "how"
             and words[1] == "long"
         ):
+
             return "duration"
 
+        # -----------------------------------------------------
         # HOW
+        # -----------------------------------------------------
+
         if words[0] == "how":
+
             return "process"
 
+        # -----------------------------------------------------
         # WHY
+        # -----------------------------------------------------
+
         if words[0] == "why":
+
             return "reason"
 
+        # -----------------------------------------------------
         # WHAT
+        # -----------------------------------------------------
+
         if words[0] == "what":
 
             if any(
@@ -195,11 +235,15 @@ class AnswerabilityChecker:
                     "what means"
                 ]
             ):
+
                 return "definition"
 
             return "information"
 
-        # YES / NO STYLE
+        # -----------------------------------------------------
+        # YES / NO FACT QUESTIONS
+        # -----------------------------------------------------
+
         if words[0] in [
             "is",
             "are",
@@ -209,6 +253,7 @@ class AnswerabilityChecker:
             "could",
             "will"
         ]:
+
             return "fact"
 
         return "unknown"
@@ -232,9 +277,11 @@ class AnswerabilityChecker:
         )
 
         if not query_tokens:
+
             return 0.0
 
         if not evidence_tokens:
+
             return 0.0
 
         common_tokens = (
@@ -258,6 +305,7 @@ class AnswerabilityChecker:
     ):
 
         if not evidence_sentences:
+
             return 0.0
 
         query_embedding = self.model.encode(
@@ -294,7 +342,6 @@ class AnswerabilityChecker:
 
         text = str(evidence)
 
-        # Common organization/company indicators
         organization_patterns = [
 
             r"\b[A-Z][A-Za-z0-9&.-]+"
@@ -313,6 +360,7 @@ class AnswerabilityChecker:
                 pattern,
                 text
             ):
+
                 return True
 
         return False
@@ -348,6 +396,7 @@ class AnswerabilityChecker:
                 evidence,
                 flags=re.IGNORECASE
             ):
+
                 return True
 
         return False
@@ -419,8 +468,6 @@ class AnswerabilityChecker:
 
         if question_type == "person":
 
-            # Look for simple person-name pattern.
-            # This is intentionally conservative.
             return bool(
                 re.search(
                     r"\b[A-Z][a-z]+"
@@ -447,8 +494,6 @@ class AnswerabilityChecker:
                 evidence
             )
 
-        # Definition / process / information questions
-        # can be supported by semantic + lexical evidence.
         return True
 
     # =========================================================
@@ -458,26 +503,33 @@ class AnswerabilityChecker:
     def check(
         self,
         query,
-        evidence_context
+        evidence_context,
+        uploaded_dataset=False
     ):
 
         # -----------------------------------------------------
-        # Empty query
+        # EMPTY QUERY
         # -----------------------------------------------------
 
         if not query or not query.strip():
 
             return {
+
                 "is_answerable": False,
+
                 "semantic_score": 0.0,
+
                 "lexical_score": 0.0,
+
                 "question_type": "unknown",
+
                 "required_evidence_found": False,
+
                 "reason": "Empty query"
             }
 
         # -----------------------------------------------------
-        # Empty evidence
+        # NO EVIDENCE
         # -----------------------------------------------------
 
         if (
@@ -486,19 +538,26 @@ class AnswerabilityChecker:
         ):
 
             return {
+
                 "is_answerable": False,
+
                 "semantic_score": 0.0,
+
                 "lexical_score": 0.0,
+
                 "question_type":
                     self.detect_question_type(
                         query
                     ),
+
                 "required_evidence_found": False,
-                "reason": "No evidence available"
+
+                "reason":
+                    "No evidence available"
             }
 
         # -----------------------------------------------------
-        # Evidence sentences
+        # SPLIT EVIDENCE
         # -----------------------------------------------------
 
         evidence_sentences = (
@@ -510,20 +569,26 @@ class AnswerabilityChecker:
         if not evidence_sentences:
 
             return {
+
                 "is_answerable": False,
+
                 "semantic_score": 0.0,
+
                 "lexical_score": 0.0,
+
                 "question_type":
                     self.detect_question_type(
                         query
                     ),
+
                 "required_evidence_found": False,
+
                 "reason":
                     "No evidence sentences found"
             }
 
         # -----------------------------------------------------
-        # Question type
+        # QUESTION TYPE
         # -----------------------------------------------------
 
         question_type = (
@@ -533,7 +598,7 @@ class AnswerabilityChecker:
         )
 
         # -----------------------------------------------------
-        # Scores
+        # SEMANTIC SCORE
         # -----------------------------------------------------
 
         semantic_score = (
@@ -543,6 +608,10 @@ class AnswerabilityChecker:
             )
         )
 
+        # -----------------------------------------------------
+        # LEXICAL SCORE
+        # -----------------------------------------------------
+
         lexical_score = (
             self.calculate_lexical_overlap(
                 query,
@@ -551,21 +620,7 @@ class AnswerabilityChecker:
         )
 
         # -----------------------------------------------------
-        # Basic relevance
-        # -----------------------------------------------------
-
-        semantic_pass = (
-            semantic_score
-            >= self.semantic_threshold
-        )
-
-        lexical_pass = (
-            lexical_score
-            >= self.lexical_threshold
-        )
-
-        # -----------------------------------------------------
-        # Required evidence
+        # REQUIRED EVIDENCE
         # -----------------------------------------------------
 
         required_evidence_found = (
@@ -575,26 +630,129 @@ class AnswerabilityChecker:
             )
         )
 
-        # -----------------------------------------------------
-        # Final decision
-        # -----------------------------------------------------
+        # =====================================================
+        # NORMAL DATASET THRESHOLDS
+        # =====================================================
 
-        is_answerable = (
-            semantic_pass
-            and lexical_pass
-            and required_evidence_found
-        )
+        if not uploaded_dataset:
 
-        # -----------------------------------------------------
-        # Reason
-        # -----------------------------------------------------
+            semantic_threshold = (
+                self.semantic_threshold
+            )
+
+            lexical_threshold = (
+                self.lexical_threshold
+            )
+
+            semantic_pass = (
+                semantic_score
+                >= semantic_threshold
+            )
+
+            lexical_pass = (
+                lexical_score
+                >= lexical_threshold
+            )
+
+            is_answerable = (
+                semantic_pass
+                and lexical_pass
+                and required_evidence_found
+            )
+
+        # =====================================================
+        # UPLOADED DATASET
+        # =====================================================
+
+        else:
+
+            semantic_threshold = 0.40
+
+            lexical_threshold = 0.10
+
+            semantic_pass = (
+                semantic_score
+                >= semantic_threshold
+            )
+
+            lexical_pass = (
+                lexical_score
+                >= lexical_threshold
+            )
+
+            # -------------------------------------------------
+            # SPECIAL RULE FOR SELECTION QUESTIONS
+            # -------------------------------------------------
+            #
+            # Uploaded datasets are often structured records.
+            #
+            # Example:
+            #
+            # product_name: Laptop Pro 15
+            # category: Electronics
+            # description: High performance laptop
+            #              for programming
+            #
+            # A selection query may have strong lexical evidence
+            # while the sentence-level semantic score is slightly
+            # below the generic threshold.
+            #
+            # Therefore:
+            #
+            # selection +
+            # strong lexical overlap +
+            # required evidence
+            #
+            # is sufficient.
+            # -------------------------------------------------
+
+            strong_selection_evidence = (
+
+                question_type == "selection"
+
+                and lexical_score >= 0.50
+
+                and required_evidence_found
+            )
+
+            if strong_selection_evidence:
+
+                is_answerable = True
+
+                semantic_pass = True
+
+            else:
+
+                is_answerable = (
+                    semantic_pass
+                    and lexical_pass
+                    and required_evidence_found
+                )
+
+        # =====================================================
+        # REASON
+        # =====================================================
 
         if is_answerable:
 
-            reason = (
-                "Evidence appears sufficient "
-                "for answering the query."
-            )
+            if (
+                uploaded_dataset
+                and question_type == "selection"
+                and lexical_score >= 0.50
+            ):
+
+                reason = (
+                    "Strong lexical evidence and required "
+                    "selection evidence found in the "
+                    "uploaded dataset."
+                )
+
+            else:
+
+                reason = (
+                    "Evidence appears sufficient "
+                    "for answering the query."
+                )
 
         elif not semantic_pass:
 
@@ -622,6 +780,10 @@ class AnswerabilityChecker:
             reason = (
                 "Evidence is insufficient."
             )
+
+        # =====================================================
+        # RETURN RESULT
+        # =====================================================
 
         return {
 
@@ -652,184 +814,66 @@ class AnswerabilityChecker:
 
 
 # =============================================================
-# STANDALONE TEST
+# MODULE TEST
 # =============================================================
 
 if __name__ == "__main__":
 
     print("=" * 60)
-    print("ADVANCED ANSWERABILITY CHECKER TEST")
-    print("=" * 60)
 
-    checker = AnswerabilityChecker(
-        semantic_threshold=0.55,
-        lexical_threshold=0.15
+    print(
+        "ADVANCED ANSWERABILITY CHECKER TEST"
     )
 
-    # =========================================================
-    # TEST 1
-    # =========================================================
-
-    print("\n")
-    print("=" * 60)
-    print("TEST 1 - SUPPORTED QUERY")
     print("=" * 60)
 
-    query_1 = (
+    checker = AnswerabilityChecker()
+
+    query = (
         "What resources does cloud computing provide?"
     )
 
-    evidence_1 = (
+    evidence = (
         "Cloud computing provides computing "
         "resources over the internet."
     )
 
-    result_1 = checker.check(
-        query_1,
-        evidence_1
+    result = checker.check(
+        query,
+        evidence
     )
 
     print(
-        f"\nQuery: {query_1}"
-    )
-
-    print(
-        f"Question Type: "
-        f"{result_1['question_type']}"
-    )
-
-    print(
-        f"Semantic Score: "
-        f"{result_1['semantic_score']:.4f}"
-    )
-
-    print(
-        f"Lexical Score : "
-        f"{result_1['lexical_score']:.4f}"
-    )
-
-    print(
-        f"Required Evidence: "
-        f"{result_1['required_evidence_found']}"
-    )
-
-    print(
-        f"Answerable: "
-        f"{result_1['is_answerable']}"
-    )
-
-    print(
-        f"Reason: "
-        f"{result_1['reason']}"
-    )
-
-    # =========================================================
-    # TEST 2
-    # =========================================================
-
-    print("\n")
-    print("=" * 60)
-    print("TEST 2 - UNSUPPORTED COMPANY QUERY")
-    print("=" * 60)
-
-    query_2 = (
-        "Which companies provide cloud computing services?"
-    )
-
-    evidence_2 = (
-        "Cloud computing provides computing "
-        "resources over the internet."
-    )
-
-    result_2 = checker.check(
-        query_2,
-        evidence_2
-    )
-
-    print(
-        f"\nQuery: {query_2}"
+        f"\nQuery: {query}"
     )
 
     print(
         f"Question Type: "
-        f"{result_2['question_type']}"
+        f"{result['question_type']}"
     )
 
     print(
         f"Semantic Score: "
-        f"{result_2['semantic_score']:.4f}"
+        f"{result['semantic_score']:.4f}"
     )
 
     print(
-        f"Lexical Score : "
-        f"{result_2['lexical_score']:.4f}"
-    )
-
-    print(
-        f"Required Evidence: "
-        f"{result_2['required_evidence_found']}"
-    )
-
-    print(
-        f"Answerable: "
-        f"{result_2['is_answerable']}"
-    )
-
-    print(
-        f"Reason: "
-        f"{result_2['reason']}"
-    )
-
-    # =========================================================
-    # TEST 3
-    # =========================================================
-
-    print("\n")
-    print("=" * 60)
-    print("TEST 3 - NO EVIDENCE")
-    print("=" * 60)
-
-    query_3 = (
-        "What is machine learning?"
-    )
-
-    evidence_3 = ""
-
-    result_3 = checker.check(
-        query_3,
-        evidence_3
-    )
-
-    print(
-        f"\nQuery: {query_3}"
-    )
-
-    print(
-        f"Question Type: "
-        f"{result_3['question_type']}"
-    )
-
-    print(
-        f"Semantic Score: "
-        f"{result_3['semantic_score']:.4f}"
-    )
-
-    print(
-        f"Lexical Score : "
-        f"{result_3['lexical_score']:.4f}"
+        f"Lexical Score: "
+        f"{result['lexical_score']:.4f}"
     )
 
     print(
         f"Required Evidence: "
-        f"{result_3['required_evidence_found']}"
+        f"{result['required_evidence_found']}"
     )
 
     print(
         f"Answerable: "
-        f"{result_3['is_answerable']}"
+        f"{result['is_answerable']}"
     )
 
     print(
         f"Reason: "
-        f"{result_3['reason']}"
+        f"{result['reason']}"
     )
+

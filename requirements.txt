@@ -1,4 +1,4 @@
-pandas
+﻿pandas
 numpy
 openpyxl
 beautifulsoup4
@@ -6,3 +6,13 @@ nltk
 gensim
 scikit-learn
 streamlit
+torch
+torchvision
+sentence-transformers
+transformers
+faiss-cpu
+rank-bm25
+pypdf
+fastapi
+uvicorn
+requests

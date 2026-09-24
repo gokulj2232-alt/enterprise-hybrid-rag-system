@@ -1,53 +1,47 @@
-
 # ==================================================
 # RELEVANCE FILTER
 # ==================================================
-
+def _to_float(value, default=None):
+    """Safely convert a value to float."""
+    if value is None:
+        return default
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
 def filter_relevant_results(
     results,
     min_score=-5.0,
     min_results=1
 ):
     """
-    Remove weakly relevant reranked results.
-
-    Parameters
-    ----------
-    results : list
-        Reranked search results.
-
-    min_score : float
-        Minimum Cross-Encoder score required.
-
-    min_results : int
-        Kept for compatibility with the pipeline.
-        No weak result is forced into the final context.
-
-    Returns
-    -------
-    list
-        Filtered relevant results.
+    Remove weakly relevant reranked results safely.
     """
-
     if not results:
         return []
-
-    # Keep only results that meet the relevance threshold
-    filtered_results = [
-        result
-        for result in results
-        if result.get("reranker_score", -999) >= min_score
-    ]
-
+    threshold = _to_float(
+        min_score,
+        default=-5.0
+    )
+    filtered_results = []
+    for result in results:
+        if not isinstance(result, dict):
+            continue
+        score = _to_float(
+            result.get("reranker_score"),
+            default=None
+        )
+        if score is None:
+            continue
+        result_copy = result.copy()
+        result_copy["reranker_score"] = score
+        if score >= threshold:
+            filtered_results.append(result_copy)
     return filtered_results
-
-
 # ==================================================
 # TEST
 # ==================================================
-
 if __name__ == "__main__":
-
     test_results = [
         {
             "title": "RAG",
@@ -64,32 +58,28 @@ if __name__ == "__main__":
         {
             "title": "K Means Clustering",
             "reranker_score": -10.87
+        },
+        {
+            "title": "String Score Test",
+            "reranker_score": "3.50"
         }
     ]
-
     print()
     print("=" * 60)
     print("RELEVANCE FILTER TEST")
     print("=" * 60)
-
     filtered = filter_relevant_results(
         test_results,
-        min_score=-5.0
+        min_score="-5.0"
     )
-
     print()
     print(f"Original results: {len(test_results)}")
     print(f"Filtered results: {len(filtered)}")
-
     for rank, result in enumerate(
         filtered,
         start=1
     ):
-
         print()
         print(f"Result #{rank}")
         print(f"Title: {result['title']}")
-        print(
-            f"Score: "
-            f"{result['reranker_score']}"
-        )
+        print(f"Score: {result['reranker_score']}")

@@ -1,8 +1,32 @@
 .venv
 __pycache__
 *.pyc
-.pytest_cache
+*.pyo
+*.pyd
 .git
 .gitignore
-.env
+.pytest_cache
+.streamlit
+.vscode
 *.log
+*.tmp
+# Runtime data is mounted through docker-compose
+data/
+# Local models are not needed inside the image
+models/
+# Local development files
+tests/
+*.md
+*.txt
+app.py
+api.py
+main.py
+hybrid_search.py
+bm25_search.py
+build_bm25.py
+build_index.py
+reranker.py
+search.py
+upgrade_dataset.py
+
+!requirements-docker.txt

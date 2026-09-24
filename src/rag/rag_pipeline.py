@@ -8,10 +8,19 @@ from src.search.reranker import rerank
 from src.search.relevance_filter import filter_relevant_results
 from src.rag.context_compressor import compress_context
 from src.rag.rag_generator import RAGGenerator
+from src.uploads.uploaded_hybrid_search import uploaded_hybrid_search
 
+
+# =============================================================
+# RAG GENERATOR
+# =============================================================
 
 rag_generator = RAGGenerator()
 
+
+# =============================================================
+# CONVERSATION CONTEXT
+# =============================================================
 
 def build_conversation_context(conversation):
     """
@@ -24,10 +33,19 @@ def build_conversation_context(conversation):
     context_parts = []
 
     for message in conversation[-6:]:
-        role = message.get("role", "").strip()
-        content = message.get("content", "").strip()
+
+        role = message.get(
+            "role",
+            ""
+        ).strip()
+
+        content = message.get(
+            "content",
+            ""
+        ).strip()
 
         if role and content:
+
             context_parts.append(
                 f"{role.capitalize()}: {content}"
             )
@@ -35,13 +53,22 @@ def build_conversation_context(conversation):
     return "\n".join(context_parts)
 
 
-def build_contextual_query(query, conversation):
+# =============================================================
+# CONTEXTUAL QUERY
+# =============================================================
+
+def build_contextual_query(
+    query,
+    conversation
+):
     """
     Combine recent conversation with the current question.
     """
 
-    conversation_context = build_conversation_context(
-        conversation
+    conversation_context = (
+        build_conversation_context(
+            conversation
+        )
     )
 
     if not conversation_context:
@@ -55,61 +82,157 @@ def build_contextual_query(query, conversation):
     )
 
 
-def rag_pipeline(query, top_k=5, conversation=None):
+# =============================================================
+# MAIN RAG PIPELINE
+# =============================================================
+
+def rag_pipeline(
+    query,
+    top_k=5,
+    conversation=None,
+    uploaded_dataset=False
+):
     """
     Complete Enterprise Hybrid RAG Pipeline.
 
-    Flow:
-    1. Conversation context
-    2. Query processing
-    3. Multi-query retrieval
-    4. Cross-encoder reranking
-    5. Relevance filtering
-    6. Context compression
-    7. RAG answer generation
-    8. Source/evidence collection
+    Existing dataset:
+
+        Query
+          ↓
+        Conversation Context
+          ↓
+        Query Processing
+          ↓
+        Multi-Query Retrieval
+          ↓
+        FAISS + BM25
+          ↓
+        Cross-Encoder Reranking
+          ↓
+        Relevance Filtering
+          ↓
+        Context Compression
+          ↓
+        Evidence Extraction
+          ↓
+        Answerability
+          ↓
+        RAG Generation
+          ↓
+        Grounding Validation
+
+    Uploaded dataset:
+
+        Query
+          ↓
+        Conversation Context
+          ↓
+        Query Processing
+          ↓
+        Uploaded FAISS + BM25
+          ↓
+        Cross-Encoder Reranking
+          ↓
+        Relevance Filtering
+          ↓
+        Context Compression
+          ↓
+        Evidence Extraction
+          ↓
+        Answerability
+          ↓
+        RAG Generation
+          ↓
+        Grounding Validation
     """
 
     if conversation is None:
         conversation = []
 
-    # ---------------------------------------------------------
+    # =========================================================
+    # VALIDATE QUERY
+    # =========================================================
+
+    query = str(query).strip()
+
+    if not query:
+
+        return {
+            "answer": (
+                "Please provide a question."
+            ),
+            "sources": []
+        }
+
+    # =========================================================
     # STEP 1: BUILD CONTEXTUAL QUERY
-    # ---------------------------------------------------------
+    # =========================================================
 
     contextual_query = build_contextual_query(
         query,
         conversation
     )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # STEP 2: PROCESS QUERY
-    # ---------------------------------------------------------
+    # =========================================================
 
     processed = process_query(
         contextual_query
     )
 
-    expanded_query = processed["expanded_query"]
-
-    # ---------------------------------------------------------
-    # STEP 3: MULTI-QUERY RETRIEVAL
-    # ---------------------------------------------------------
-
-    retrieved_chunks = multi_query_search(
-        expanded_query,
-        top_k=20
+    expanded_query = processed.get(
+        "expanded_query",
+        contextual_query
     )
 
+    # =========================================================
+    # STEP 3: RETRIEVAL
+    # =========================================================
+
+    if uploaded_dataset:
+
+        print(
+            "Using uploaded dataset..."
+        )
+
+        retrieved_chunks = (
+            uploaded_hybrid_search(
+                expanded_query,
+                top_k=20
+            )
+        )
+
+    else:
+
+        print(
+            "Using existing knowledge base..."
+        )
+
+        retrieved_chunks = (
+            multi_query_search(
+                expanded_query,
+                top_k=20
+            )
+        )
+
+    # =========================================================
+    # NO RETRIEVED RESULTS
+    # =========================================================
+
     if not retrieved_chunks:
+
         return {
-            "answer": "I don't know based on the provided documents.",
+            "answer": (
+                "I don't know based on "
+                "the provided documents."
+            ),
             "sources": []
         }
 
-    # ---------------------------------------------------------
+    # =========================================================
     # STEP 4: CROSS-ENCODER RERANKING
-    # ---------------------------------------------------------
+    # =========================================================
 
     reranked_chunks = rerank(
         expanded_query,
@@ -118,49 +241,79 @@ def rag_pipeline(query, top_k=5, conversation=None):
     )
 
     if not reranked_chunks:
+
         return {
-            "answer": "I don't know based on the provided documents.",
+            "answer": (
+                "I don't know based on "
+                "the provided documents."
+            ),
             "sources": []
         }
 
-    # ---------------------------------------------------------
+    # =========================================================
     # STEP 5: RELEVANCE FILTERING
-    # ---------------------------------------------------------
+    # =========================================================
 
-    filtered_chunks = filter_relevant_results(
-        reranked_chunks,
-        min_score=-5.0,
-        min_results=1
+    filtered_chunks = (
+        filter_relevant_results(
+            reranked_chunks,
+            min_score=-8.0,
+            min_results=1
+        )
     )
 
     if not filtered_chunks:
+
         return {
-            "answer": "I don't know based on the provided documents.",
+            "answer": (
+                "I don't know based on "
+                "the provided documents."
+            ),
             "sources": []
         }
 
-    # ---------------------------------------------------------
+    # =========================================================
     # STEP 6: CONTEXT COMPRESSION
-    # ---------------------------------------------------------
+    # =========================================================
 
-    compressed_context = compress_context(
-        filtered_chunks
+    compressed_context = (
+        compress_context(
+            filtered_chunks
+        )
     )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # STEP 7: RAG ANSWER GENERATION
-    # ---------------------------------------------------------
+    # =========================================================
+    #
+    # IMPORTANT:
+    #
+    # Retrieval uses:
+    #     contextual_query
+    #     expanded_query
+    #
+    # Answer generation uses:
+    #     original query
+    #
+    # This is important because uploaded-dataset
+    # extractive selection logic checks the actual
+    # user question, for example:
+    #
+    #     "Which laptop is suitable for programming?"
+    #
+    # instead of the conversation-expanded query.
+    #
+    # =========================================================
 
-    # Use the contextual query so the generator also
-    # understands references such as "they", "it", "this", etc.
     result = rag_generator.generate(
-        contextual_query,
-        compressed_context
+        query,
+        compressed_context,
+        uploaded_dataset=uploaded_dataset
     )
 
-    # ---------------------------------------------------------
+    # =========================================================
     # STEP 8: SOURCE INFORMATION
-    # ---------------------------------------------------------
+    # =========================================================
 
     sources = []
 
@@ -168,60 +321,98 @@ def rag_pipeline(query, top_k=5, conversation=None):
         filtered_chunks,
         start=1
     ):
+
         sources.append({
+
             "rank": rank,
+
             "document_id": chunk.get(
                 "document_id",
                 ""
             ),
+
             "category": chunk.get(
                 "category",
                 ""
             ),
+
             "title": chunk.get(
                 "title",
                 ""
             ),
+
             "reranker_score": chunk.get(
                 "reranker_score",
                 0
             ),
+
             "text": chunk.get(
                 "text",
                 ""
             )
         })
 
+    # =========================================================
+    # FINAL RESPONSE
+    # =========================================================
+
     return {
+
         "answer": result.get(
             "answer",
-            "I don't know based on the provided documents."
+            "I don't know based on "
+            "the provided documents."
         ),
+
         "sources": sources
     }
 
 
+# =============================================================
+# DIRECT PIPELINE TEST
+# =============================================================
+
 if __name__ == "__main__":
 
     print("=" * 70)
-    print("ENTERPRISE HYBRID RAG PIPELINE TEST")
+
+    print(
+        "ENTERPRISE HYBRID RAG PIPELINE TEST"
+    )
+
     print("=" * 70)
 
     query = input(
         "\nEnter your question: "
     )
 
-    result = rag_pipeline(query)
+    result = rag_pipeline(
+        query
+    )
 
-    print("\n" + "=" * 70)
+    print(
+        "\n" + "=" * 70
+    )
+
     print("ANSWER")
-    print("=" * 70)
 
-    print(result["answer"])
+    print(
+        "=" * 70
+    )
 
-    print("\n" + "=" * 70)
+    print(
+        result["answer"]
+    )
+
+    print(
+        "\n" + "=" * 70
+    )
+
     print("SOURCES")
-    print("=" * 70)
+
+    print(
+        "=" * 70
+    )
 
     for source in result["sources"]:
 
@@ -237,4 +428,6 @@ if __name__ == "__main__":
             f"{source['reranker_score']}"
         )
 
-    print("\n" + "=" * 70)
+    print(
+        "\n" + "=" * 70
+    )
